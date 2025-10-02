@@ -1,11 +1,12 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.router import auth, users, chickens
+from app.router import auth, users, chickens, isolation
 
 app = FastAPI()
 
 # Incluir en el objeto app los routers
 app.include_router(users.router, prefix="/users", tags=["usuarios"])
+app.include_router(isolation.router, prefix="/isolations", tags=["aislamiento"])
 app.include_router(auth.router, prefix="/access", tags=["login"])
 app.include_router(chickens.router, prefix="/chickens", tags=["gallinas"])
 
