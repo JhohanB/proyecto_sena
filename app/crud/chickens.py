@@ -28,6 +28,20 @@ def create_chicken(db: Session, chicken: ChickenCreate) -> Optional[bool]:
         raise Exception("Error de base de datos al crear el registro")
 
 
+def get_chicken_by_id(db: Session, id_ingreso: int):
+    try:
+        query = text("""SELECT id_ingreso, id_galpon, fecha, id_tipo_gallina, raza, cantidad_gallinas
+                     FROM ingreso_gallinas
+                     JOIN tipo_gallinas ON ingreso_gallinas.id_tipo_gallina = tipo_gallinas.id_tipo_gallinas
+                     WHERE id_ingreso = :ingreso
+                """)
+        result = db.execute(query, {"ingreso": id_ingreso}).mappings().first()
+        return result
+    except SQLAlchemyError as e:
+        logger.error(f"Error al obtener el registro por id: {e}")
+        raise Exception("Error de base de datos al obtener el registro")
+
+
 def get_chicken_by_galpon(db: Session, id_galpon: int):
     try:
         query = text("""SELECT id_ingreso, id_galpon, fecha, id_tipo_gallina, raza, cantidad_gallinas
