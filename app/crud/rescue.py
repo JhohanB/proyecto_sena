@@ -29,10 +29,10 @@ def create_rescue(db: Session, rescue: RescueCreate) -> Optional[bool]:
 def get_rescue_by_id(db: Session, id_salvamento: int):
     try:
         query = text("""SELECT salvamento.id_salvamento, salvamento.id_galpon, salvamento.fecha, salvamento.id_tipo_gallina, 
-                        salvamento.cantidad_gallinas,  galpones.nombre_galpon, tipo_gallinas.nombre_tipo_gallina
+                        salvamento.cantidad_gallinas,  galpones.nombre, tipo_gallinas.raza
                         FROM salvamento
                         JOIN galpones ON salvamento.id_galpon = galpones.id_galpon
-                        JOIN tipo_gallinas ON salvamento.id_tipo_gallina = tipo_gallinas.id_tipo_gallina
+                        JOIN tipo_gallinas ON salvamento.id_tipo_gallina = tipo_gallinas.id_tipo_gallinas
                         WHERE id_salvamento = :salvamento_id
                     """)
         result = db.execute(query, {"salvamento_id": id_salvamento}).mappings().first()

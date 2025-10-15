@@ -10,7 +10,7 @@ from app.schemas.users import UserOut
 from app.crud import rescue as crud_rescue
 
 router = APIRouter()
-modulo = 5
+modulo = 8
 
 @router.post("/crear", status_code=status.HTTP_201_CREATED)
 def create_rescue(
@@ -49,7 +49,7 @@ def get_rescue(
 
         rescue = crud_rescue.get_rescue_by_id(db, id_salvamento)
         if not rescue:
-            raise HTTPException(status_code=404, detail="Finca no encontrada")
+            raise HTTPException(status_code=404, detail="Salvamento no encontrado")
         return rescue
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))    
