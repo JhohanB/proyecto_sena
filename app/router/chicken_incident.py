@@ -81,7 +81,7 @@ def update_chicken_incident(
         
         id_rol = user_token.id_rol
 
-        if not verify_permissions(db, id_rol, modulo, 'seleccionar'):
+        if not verify_permissions(db, id_rol, modulo, 'actualizar'):
             raise HTTPException(status_code=401, detail="Usuario no autorizado")
         
         success = crud_chicken_incident.update_chicken_incident_by_id(db, chicken_incident_id, cihcken_incidente)

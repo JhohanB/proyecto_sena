@@ -55,7 +55,7 @@ def update_chicken_incident_by_id(db: Session, incident_chicken_id: int, chicken
    
         chicken_incident_data = chicken_incident.model_dump(exclude_unset=True)
         if not chicken_incident_data:
-            return False  
+            return False 
         set_clauses = ", ".join([f"{key} = :{key}" for key in chicken_incident_data.keys()])
         sentencia = text(f"""
             UPDATE incidentes_gallina 
