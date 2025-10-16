@@ -32,6 +32,26 @@ def create_chicken(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.get("/by-id/{id_ingreso}", response_model=ChickenOut)
+def get_chicken(
+    id_ingreso: int, 
+    db: Session = Depends(get_db),
+    user_token: UserOut = Depends(get_current_user)
+):
+    try:
+        # El rol de quien usa el endpoint
+        id_rol = user_token.id_rol
+        if not verify_permissions(db, id_rol, modulo, 'seleccionar'):
+            raise HTTPException(status_code=401, detail="Usuario no autorizado")
+
+        chickens = crud_chickens.get_chicken_by_id(db, id_ingreso)
+        if not chickens:
+            raise HTTPException(status_code=404, detail="Registro no encontrado")
+        return chickens
+    except SQLAlchemyError as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/by-galpon", response_model=List[ChickenOut])
 def get_chickens(
     id_galpon: int, 

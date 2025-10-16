@@ -10,7 +10,7 @@ from app.schemas.chicken_incident import incidentChickenBase, incidentChickenOut
 from app.crud import chicken_incident as crud_chicken_incident
 
 router = APIRouter()
-modulo = 4
+modulo = 5
 
 @router.post("/crear", status_code=status.HTTP_201_CREATED)
 def create_incident(

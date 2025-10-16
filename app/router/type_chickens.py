@@ -11,7 +11,7 @@ from app.schemas.users import UserOut
 
 
 router = APIRouter()
-modulo = 6
+modulo = 5
 
 @router.post("/crear", status_code=status.HTTP_201_CREATED)
 def create_type_chicken(
