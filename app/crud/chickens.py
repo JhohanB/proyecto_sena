@@ -8,8 +8,21 @@ from app.schemas.chickens import ChickenCreate, ChickenUpdate
 
 logger = logging.getLogger(__name__)
 
+def get_galpon_info(db: Session, id_galpon: int):
+    try:
+        query = text("""SELECT id_galpon, capacidad, cant_actual
+                    FROM galpones WHERE id_galpon = :id
+                """)
+        result = db.execute(query, {"id": id_galpon}).mappings().first()
+        return result
+    except SQLAlchemyError as e:
+        logger.error(f"Error al obtener la información del galpón: {e}")
+        raise Exception("Error de base de datos al obtener la información del galpón")
+
+
 def create_chicken(db: Session, chicken: ChickenCreate) -> Optional[bool]:
     try:
+
         sentencia = text("""
             INSERT INTO ingreso_gallinas (
                 id_galpon, fecha,
@@ -44,6 +57,7 @@ def get_chicken_by_id(db: Session, id_ingreso: int):
 
 def get_chicken_by_galpon(db: Session, id_galpon: int):
     try:
+
         query = text("""SELECT id_ingreso, id_galpon, fecha, id_tipo_gallina, raza, cantidad_gallinas
                      FROM ingreso_gallinas
                      JOIN tipo_gallinas ON ingreso_gallinas.id_tipo_gallina = tipo_gallinas.id_tipo_gallinas
@@ -56,16 +70,27 @@ def get_chicken_by_galpon(db: Session, id_galpon: int):
         raise Exception("Error de base de datos al obtener el registro")
 
 
-def get_all_chickens(db: Session):
+def get_all_chickens_pag(db: Session, skip: int = 0, limit: int = 10):
     try:
+        count_query = text("""
+            SELECT COUNT(id_ingreso) AS total 
+            FROM ingreso_gallinas
+        """)
+        total_result = db.execute(count_query).scalar()
+
         query = text("""SELECT id_ingreso, id_galpon, fecha, id_tipo_gallina, raza, cantidad_gallinas
                      FROM ingreso_gallinas
                      JOIN tipo_gallinas ON ingreso_gallinas.id_tipo_gallina = tipo_gallinas.id_tipo_gallinas
+                     ORDER BY id_ingreso
+                     LIMIT :limit OFFSET :skip
                 """)
-        result = db.execute(query).mappings().all()
-        return result
+        result = db.execute(query, {"skip": skip, "limit": limit}).mappings().all()
+        return {
+            "total": total_result or 0,
+            "chickens": [dict(row) for row in result]
+        }
     except SQLAlchemyError as e:
-        logger.error(f"Error al obtener los registros: {e}")
+        logger.error(f"Error al obtener los registros: {e}", exc_info=True)
         raise Exception("Error de base de datos al obtener los registros")
 
 
@@ -75,7 +100,6 @@ def update_chickens_by_id(db: Session, id_ingreso: int, chicken: ChickenUpdate) 
         chicken_data = chicken.model_dump(exclude_unset=True)
         if not chicken_data:
             return False  # nada que actualizar
-
 
         # Construir dinámicamente la sentencia UPDATE
         set_clauses = ", ".join([f"{key} = :{key}" for key in chicken_data.keys()])
@@ -110,3 +134,40 @@ def get_chicken_by_id(db: Session, id_ingreso: int):
     except SQLAlchemyError as e:
         logger.error(f"Error al obtener el registro por id: {e}")
         raise Exception("Error de base de datos al obtener el registro")
+
+
+def delete_chicken_by_id(db: Session, id_ingreso: int) -> bool:
+    try:
+        sentencia = text("""
+            DELETE FROM ingreso_gallinas
+            WHERE id_ingreso = :id
+        """)
+        result = db.execute(sentencia, {"id": id_ingreso})
+        db.commit()
+
+        return result.rowcount > 0
+    except SQLAlchemyError as e:
+        db.rollback()
+        logger.error(f"Error al eliminar el registro {id_ingreso}: {e}")
+        raise Exception("Error de base de datos al eliminar el registro")
+
+
+def get_chihckens_by_date_range(db: Session, fecha_inicio: str, fecha_fin: str):
+    try:
+        query = text("""
+            SELECT id_ingreso, id_galpon, fecha, id_tipo_gallina, raza, cantidad_gallinas
+                    FROM ingreso_gallinas
+                    JOIN tipo_gallinas ON ingreso_gallinas.id_tipo_gallina = tipo_gallinas.id_tipo_gallinas
+                    WHERE fecha BETWEEN :fecha_inicio AND :fecha_fin
+                    ORDER BY fecha ASC
+            """)
+
+        result = db.execute(query, {
+            "fecha_inicio": fecha_inicio,
+            "fecha_fin": fecha_fin
+        }).mappings().all()
+
+        return result
+
+    except SQLAlchemyError as e:
+        raise Exception(f"Error al consultar el registro de gallinas: {e}")

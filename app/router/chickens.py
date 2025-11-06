@@ -1,5 +1,5 @@
 from typing import List
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 from app.crud.permisos import verify_permissions
@@ -8,6 +8,7 @@ from core.database import get_db
 from app.schemas.chickens import ChickenCreate, ChickenOut, ChickenUpdate
 from app.schemas.users import UserOut
 from app.crud import chickens as crud_chickens
+from app.crud import type_chickens as crud_types
 
 router = APIRouter()
 modulo = 5
@@ -24,6 +25,19 @@ def create_chicken(
 
         if not verify_permissions(db, id_rol, modulo, 'insertar'):
             raise HTTPException(status_code=401, detail="Usuario no autorizado")
+        
+        galpon = crud_chickens.get_galpon_info(db, chicken.id_galpon)
+        if not galpon:
+            raise HTTPException(status_code=404, detail="El galpón especificado no existe")
+        
+        nueva_cantidad = galpon['cant_actual'] + chicken.cantidad_gallinas
+
+        if nueva_cantidad > galpon['capacidad']:
+            raise HTTPException(status_code=400, detail="La cantidad de gallinas excede la capacidad  del galpón")
+
+        tipo = crud_types.get_type_chicken_by_id(db, chicken.id_tipo_gallina)
+        if not tipo:
+            raise HTTPException(status_code=404, detail="El tipo de gallina especificado no existe")
 
         crud_chickens.create_chicken(db, chicken)
         return {"message": "Registro de gallinas creado correctamente"}
@@ -73,8 +87,10 @@ def get_chickens(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/all-chickens", response_model=List[ChickenOut])
-def get_chickens(
+@router.get("/all-chickens-pag", response_model=dict)
+def get_chickens_pag(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(10, ge=1, le=100),
     db: Session = Depends(get_db),
     user_token: UserOut = Depends(get_current_user)
 ):
@@ -84,12 +100,48 @@ def get_chickens(
         if not verify_permissions(db, id_rol, modulo, 'seleccionar'):
             raise HTTPException(status_code=401, detail="Usuario no autorizado")
         
-        chickens = crud_chickens.get_all_chickens(db)
-        if not chickens:
+        skip = (page - 1) * page_size
+        data = crud_chickens.get_all_chickens_pag(db, skip=skip, limit=page_size)
+        if not data:
             raise HTTPException(status_code=404, detail="Registro no encontrado")
-        return chickens
+        
+        total = data['total']
+        chickens = data['chickens']
+
+        return {
+            "page": page,
+            "page_size": page_size,
+            "total_record_chickens": total,
+            "total_pages": (total + page_size - 1) // page_size,
+            "record_chickens": chickens
+        }
+    
     except SQLAlchemyError as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/by-fechas", response_model=List[ChickenOut])
+def get_chickens_by_date(
+    fecha_inicio: str = Query(..., description="Fecha inicial en formato YYYY-MM-DD"),
+    fecha_fin: str = Query(..., description="Fecha final en formato YYYY-MM-DD"),
+    db: Session = Depends(get_db),
+    user_token: UserOut = Depends(get_current_user)
+):
+    try:
+        id_rol = user_token.id_rol  # El rol del usuario actual
+
+        if not verify_permissions(db, id_rol, modulo, 'seleccionar'):
+            raise HTTPException(status_code=401, detail="Usuario no autorizado")
+        
+        chickens = crud_chickens.get_chihckens_by_date_range(db, fecha_inicio, fecha_fin)
+
+        if not chickens:
+            raise HTTPException(status_code=404, detail="No hay registros en ese rango de fechas")
+
+        return chickens
+
+    except SQLAlchemyError as e:
+        raise HTTPException(status_code=500, detail=f"Error al obtener la producción: {e}")
 
 
 @router.put("/by-id/{id_ingreso}")
@@ -102,12 +154,53 @@ def update_user(
     try:
         id_rol = user_token.id_rol  # El rol del usuario actual
 
-        if not verify_permissions(db, id_rol, modulo, 'seleccionar'):
+        if not verify_permissions(db, id_rol, modulo, 'actualizar'):
             raise HTTPException(status_code=401, detail="Usuario no autorizado")
+        
+        registro_actual = crud_chickens.get_chicken_by_id(db, id_ingreso)
+        if not registro_actual:
+            raise HTTPException(status_code=404, detail="El registro de ingreso no existe")
+
+        id_galpon = chicken.id_galpon or registro_actual["id_galpon"]
+
+        galpon = crud_chickens.get_galpon_info(db, id_galpon)
+        if not galpon:
+            raise HTTPException(status_code=404, detail="El galpón especificado no existe")
+        
+        if chicken.cantidad_gallinas is not None:
+            nueva_cantidad = galpon['cant_actual'] + chicken.cantidad_gallinas
+
+            if nueva_cantidad > galpon['capacidad']:
+                raise HTTPException(status_code=400, detail="La cantidad de gallinas excede la capacidad  del galpón")
+        
+        if chicken.id_tipo_gallina is not None:
+            tipo = crud_types.get_type_chicken_by_id(db, chicken.id_tipo_gallina)
+            if not tipo:
+                raise HTTPException(status_code=404, detail="El tipo de gallina especificado no existe")
 
         success = crud_chickens.update_chickens_by_id(db, id_ingreso, chicken)
         if not success:
             raise HTTPException(status_code=400, detail="No se pudo actualizar el registro")
         return {"message": "Registro actualizado correctamente"}
+    except SQLAlchemyError as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/eliminar/{id_ingreso}", status_code=status.HTTP_200_OK)
+def delete_sale(
+    id_ingreso: int,
+    db: Session = Depends(get_db),
+    user_token: UserOut = Depends(get_current_user)
+):
+    try:
+        id_rol = user_token.id_rol
+
+        if not verify_permissions(db, id_rol, modulo, 'borrar'):
+            raise HTTPException(status_code=401, detail="Usuario no autorizado")
+        
+        sales = crud_chickens.delete_chicken_by_id(db, id_ingreso)
+        if not sales:
+            raise HTTPException(status_code=404, detail="Registro de gallinas no encontrada")
+        return {"message": f"Registro eliminado correctamente"}
     except SQLAlchemyError as e:
         raise HTTPException(status_code=500, detail=str(e))
