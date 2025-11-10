@@ -10,7 +10,7 @@ from app.schemas.users import UserOut
 from app.crud import rescue as crud_rescue
 
 router = APIRouter()
-modulo = 5
+modulo = 4
 
 @router.post("/crear", status_code=status.HTTP_201_CREATED)
 def create_rescue(
@@ -70,3 +70,30 @@ def update_user(
     except SQLAlchemyError as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@router.delete("/by-id/{id_salvamento}")
+def delete_rescue(
+    id_salvamento: int, 
+    db: Session = Depends(get_db),
+    user_token: UserOut = Depends(get_current_user)
+):
+    try:
+        # Verificar permisos
+        id_rol = user_token.id_rol
+        
+        if not verify_permissions(db, id_rol, modulo, 'Borrar'):
+            raise HTTPException(status_code=401, detail="EUsuario no autorizada")
+        
+        # Verificar si existe antes de eliminar
+        existing_rescue = crud_rescue.get_rescue_by_id(db, id_salvamento)
+        if not existing_rescue:
+            raise HTTPException(status_code=404, detail="Salvamento no encontrado")
+        
+        # Eliminar
+        success = crud_rescue.delete_rescue_by_id(db, id_salvamento)
+        if not success:
+            raise HTTPException(status_code=400, detail="No se pudo eliminar el salvamento")
+        
+        return {"message": "Salvamento eliminado correctamente"}
+        
+    except SQLAlchemyError as e:
+        raise HTTPException(status_code=500, detail=str(e))

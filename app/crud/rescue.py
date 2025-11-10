@@ -73,5 +73,17 @@ def update_rescue_by_id(db: Session, id_salvamento: int, rescue:RescueUpdate) ->
         logger.error(f"Error al actualizar salvamento {id_salvamento}: {e}")
         raise Exception("Error de base de datos al actualizar la salvamento")
     
-
+def delete_rescue_by_id(db: Session, id_salvamento: int) -> Optional[bool]:
+    try:
+        query = text("""
+            DELETE FROM salvamento 
+            WHERE id_salvamento = :id_salvamento
+        """)
+        result = db.execute(query, {"id_salvamento": id_salvamento})
+        db.commit()
+        return result.rowcount > 0
+    except SQLAlchemyError as e:
+        db.rollback()
+        logger.error(f"Error al eliminar salvamento {id_salvamento}: {e}")
+        raise Exception("Error de base de datos al eliminar el salvamento")
 
