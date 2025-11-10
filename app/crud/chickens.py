@@ -1,3 +1,4 @@
+from datetime import date
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import text
@@ -55,18 +56,29 @@ def get_chicken_by_id(db: Session, id_ingreso: int):
         raise Exception("Error de base de datos al obtener el registro")
 
 
-def get_chicken_by_galpon(db: Session, id_galpon: int):
+def get_chicken_by_galpon(db: Session, skip: int = 0, limit: int = 10, id_galpon: int = 0):
     try:
+        count_query = text("""
+            SELECT COUNT(id_ingreso) AS total 
+            FROM ingreso_gallinas
+            WHERE id_galpon = :galpon
+        """)
+        total_result = db.execute(count_query, {"galpon": id_galpon}).scalar()
 
         query = text("""SELECT id_ingreso, id_galpon, fecha, id_tipo_gallina, raza, cantidad_gallinas
                      FROM ingreso_gallinas
                      JOIN tipo_gallinas ON ingreso_gallinas.id_tipo_gallina = tipo_gallinas.id_tipo_gallinas
                      WHERE id_galpon = :galpon
+                     ORDER BY id_ingreso
+                     LIMIT :limit OFFSET :skip
                 """)
-        result = db.execute(query, {"galpon": id_galpon}).mappings().all()
-        return result
+        result = db.execute(query, {"galpon": id_galpon, "skip": skip, "limit": limit}).mappings().all()
+        return {
+            "total": total_result or 0,
+            "chickens": result
+        }
     except SQLAlchemyError as e:
-        logger.error(f"Error al obtener el registro por galpon: {e}")
+        logger.error(f"Error al obtener el registro por galpon: {e}", exc_info=True)
         raise Exception("Error de base de datos al obtener el registro")
 
 
@@ -87,7 +99,7 @@ def get_all_chickens_pag(db: Session, skip: int = 0, limit: int = 10):
         result = db.execute(query, {"skip": skip, "limit": limit}).mappings().all()
         return {
             "total": total_result or 0,
-            "chickens": [dict(row) for row in result]
+            "chickens": result
         }
     except SQLAlchemyError as e:
         logger.error(f"Error al obtener los registros: {e}", exc_info=True)
@@ -152,22 +164,39 @@ def delete_chicken_by_id(db: Session, id_ingreso: int) -> bool:
         raise Exception("Error de base de datos al eliminar el registro")
 
 
-def get_chihckens_by_date_range(db: Session, fecha_inicio: str, fecha_fin: str):
+def get_chihckens_by_date_range(db: Session, skip: int = 0, limit: int = 10, fecha_inicio: date = None, fecha_fin: date = None):
     try:
+        count_query = text("""
+            SELECT COUNT(id_ingreso) AS total 
+            FROM ingreso_gallinas
+            WHERE fecha BETWEEN :fecha_inicio AND :fecha_fin
+        """)
+        total_result = db.execute(count_query, {
+            "fecha_inicio": fecha_inicio,
+            "fecha_fin": fecha_fin
+            }).scalar()
+
         query = text("""
             SELECT id_ingreso, id_galpon, fecha, id_tipo_gallina, raza, cantidad_gallinas
                     FROM ingreso_gallinas
                     JOIN tipo_gallinas ON ingreso_gallinas.id_tipo_gallina = tipo_gallinas.id_tipo_gallinas
                     WHERE fecha BETWEEN :fecha_inicio AND :fecha_fin
                     ORDER BY fecha ASC
+                    LIMIT :limit OFFSET :skip
             """)
 
         result = db.execute(query, {
+            "skip": skip, 
+            "limit": limit,
             "fecha_inicio": fecha_inicio,
             "fecha_fin": fecha_fin
         }).mappings().all()
 
-        return result
+        return {
+            "total": total_result or 0,
+            "chickens": result
+        }
 
     except SQLAlchemyError as e:
-        raise Exception(f"Error al consultar el registro de gallinas: {e}")
+        logger.error(f"Error al obtener los registros: {e}", exc_info=True)
+        raise Exception("Error de base de datos al consultar el registro de gallinas")

@@ -1,11 +1,11 @@
-from typing import List
+from math import ceil
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 from app.crud.permisos import verify_permissions
 from app.router.dependencies import get_current_user
 from core.database import get_db
-from app.schemas.chickens import ChickenCreate, ChickenOut, ChickenUpdate
+from app.schemas.chickens import ChickenCreate, ChickenOut, ChickenPaginated, ChickenUpdate
 from app.schemas.users import UserOut
 from app.crud import chickens as crud_chickens
 from app.crud import type_chickens as crud_types
@@ -26,6 +26,9 @@ def create_chicken(
         if not verify_permissions(db, id_rol, modulo, 'insertar'):
             raise HTTPException(status_code=401, detail="Usuario no autorizado")
         
+        if chicken.cantidad_gallinas <= 0:
+            raise HTTPException(status_code=400, detail="La cantidad debe ser mayor a cero")
+
         galpon = crud_chickens.get_galpon_info(db, chicken.id_galpon)
         if not galpon:
             raise HTTPException(status_code=404, detail="El galpón especificado no existe")
@@ -66,9 +69,11 @@ def get_chicken(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/by-galpon", response_model=List[ChickenOut])
+@router.get("/by-galpon", response_model=ChickenPaginated)
 def get_chickens(
-    id_galpon: int, 
+    page: int = Query(1, ge=1),
+    page_size: int = Query(10, ge=1, le=100),
+    id_galpon: int = Query(..., description="ID de galpón donde se hizo el registro"), 
     db: Session = Depends(get_db),
     user_token: UserOut = Depends(get_current_user)
 ):
@@ -78,16 +83,28 @@ def get_chickens(
 
         if not verify_permissions(db, id_rol, modulo, 'seleccionar'):
             raise HTTPException(status_code=401, detail="Usuario no autorizado")
+        
+        galpon = crud_chickens.get_galpon_info(db, id_galpon)
+        if not galpon:
+            raise HTTPException(status_code=404, detail="El galpón especificado no existe")
 
-        chickens = crud_chickens.get_chicken_by_galpon(db, id_galpon)
-        if not chickens:
+        skip = (page - 1) * page_size
+        data = crud_chickens.get_chicken_by_galpon(db,skip=skip, limit=page_size, id_galpon=id_galpon)
+        if not data or not data['total']:
             raise HTTPException(status_code=404, detail="Registro no encontrado")
-        return chickens
+
+        return ChickenPaginated(
+            page=page,
+            page_size=page_size,
+            total_record_chickens=data['total'],
+            total_pages=ceil(data['total'] / page_size),
+            record_chickens=data['chickens']
+        )
     except SQLAlchemyError as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/all-chickens-pag", response_model=dict)
+@router.get("/all-chickens-pag", response_model=ChickenPaginated)
 def get_chickens_pag(
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=100),
@@ -102,26 +119,25 @@ def get_chickens_pag(
         
         skip = (page - 1) * page_size
         data = crud_chickens.get_all_chickens_pag(db, skip=skip, limit=page_size)
-        if not data:
+        if not data or not data['total']:
             raise HTTPException(status_code=404, detail="Registro no encontrado")
-        
-        total = data['total']
-        chickens = data['chickens']
 
-        return {
-            "page": page,
-            "page_size": page_size,
-            "total_record_chickens": total,
-            "total_pages": (total + page_size - 1) // page_size,
-            "record_chickens": chickens
-        }
+        return ChickenPaginated(
+            page=page,
+            page_size=page_size,
+            total_record_chickens=data['total'],
+            total_pages=ceil(data['total'] / page_size),
+            record_chickens=data['chickens']
+        )
     
     except SQLAlchemyError as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/by-fechas", response_model=List[ChickenOut])
+@router.get("/by-fechas", response_model=ChickenPaginated)
 def get_chickens_by_date(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(10, ge=1, le=100),
     fecha_inicio: str = Query(..., description="Fecha inicial en formato YYYY-MM-DD"),
     fecha_fin: str = Query(..., description="Fecha final en formato YYYY-MM-DD"),
     db: Session = Depends(get_db),
@@ -133,15 +149,22 @@ def get_chickens_by_date(
         if not verify_permissions(db, id_rol, modulo, 'seleccionar'):
             raise HTTPException(status_code=401, detail="Usuario no autorizado")
         
-        chickens = crud_chickens.get_chihckens_by_date_range(db, fecha_inicio, fecha_fin)
+        skip = (page - 1) * page_size
+        data = crud_chickens.get_chihckens_by_date_range(db, skip=skip, limit=page_size, fecha_inicio=fecha_inicio, fecha_fin=fecha_fin)
 
-        if not chickens:
+        if not data or not data['total']:
             raise HTTPException(status_code=404, detail="No hay registros en ese rango de fechas")
 
-        return chickens
+        return ChickenPaginated(
+            page=page,
+            page_size=page_size,
+            total_record_chickens=data['total'],
+            total_pages=ceil(data['total'] / page_size),
+            record_chickens=data['chickens']
+        )
 
     except SQLAlchemyError as e:
-        raise HTTPException(status_code=500, detail=f"Error al obtener la producción: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.put("/by-id/{id_ingreso}")
@@ -160,6 +183,9 @@ def update_user(
         registro_actual = crud_chickens.get_chicken_by_id(db, id_ingreso)
         if not registro_actual:
             raise HTTPException(status_code=404, detail="El registro de ingreso no existe")
+        
+        if chicken.cantidad_gallinas <= 0:
+            raise HTTPException(status_code=400, detail="La cantidad debe ser mayor a cero")
 
         id_galpon = chicken.id_galpon or registro_actual["id_galpon"]
 

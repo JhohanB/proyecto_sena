@@ -1,6 +1,6 @@
 from datetime import date
 from pydantic import BaseModel
-from typing import Optional
+from typing import List, Optional
 
 class ChickenBase(BaseModel):
     id_galpon: int
@@ -20,3 +20,10 @@ class ChickenUpdate(BaseModel):
 class ChickenOut(ChickenBase):
     id_ingreso: int
     raza: str
+
+class ChickenPaginated(BaseModel):
+    page: int
+    page_size: int
+    total_record_chickens: int
+    total_pages: int
+    record_chickens: List[ChickenOut]
