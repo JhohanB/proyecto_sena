@@ -20,6 +20,7 @@ class ChickenUpdate(BaseModel):
 class ChickenOut(ChickenBase):
     id_ingreso: int
     raza: str
+    nombre_galpon: str
 
 class ChickenPaginated(BaseModel):
     page: int

@@ -44,9 +44,10 @@ def create_chicken(db: Session, chicken: ChickenCreate) -> Optional[bool]:
 
 def get_chicken_by_id(db: Session, id_ingreso: int):
     try:
-        query = text("""SELECT id_ingreso, id_galpon, fecha, id_tipo_gallina, raza, cantidad_gallinas
+        query = text("""SELECT id_ingreso, ingreso_gallinas.id_galpon, fecha, id_tipo_gallina, raza, cantidad_gallinas,galpones.nombre AS nombre_galpon
                      FROM ingreso_gallinas
                      JOIN tipo_gallinas ON ingreso_gallinas.id_tipo_gallina = tipo_gallinas.id_tipo_gallinas
+                     JOIN galpones ON ingreso_gallinas.id_galpon = galpones.id_galpon
                      WHERE id_ingreso = :ingreso
                 """)
         result = db.execute(query, {"ingreso": id_ingreso}).mappings().first()
@@ -65,9 +66,10 @@ def get_chicken_by_galpon(db: Session, skip: int = 0, limit: int = 10, id_galpon
         """)
         total_result = db.execute(count_query, {"galpon": id_galpon}).scalar()
 
-        query = text("""SELECT id_ingreso, id_galpon, fecha, id_tipo_gallina, raza, cantidad_gallinas
+        query = text("""SELECT id_ingreso, ingreso_gallinas.id_galpon, fecha, id_tipo_gallina, raza, cantidad_gallinas, galpones.nombre AS nombre_galpon
                      FROM ingreso_gallinas
                      JOIN tipo_gallinas ON ingreso_gallinas.id_tipo_gallina = tipo_gallinas.id_tipo_gallinas
+                     JOIN galpones ON ingreso_gallinas.id_galpon = galpones.id_galpon
                      WHERE id_galpon = :galpon
                      ORDER BY id_ingreso
                      LIMIT :limit OFFSET :skip
@@ -90,9 +92,10 @@ def get_all_chickens_pag(db: Session, skip: int = 0, limit: int = 10):
         """)
         total_result = db.execute(count_query).scalar()
 
-        query = text("""SELECT id_ingreso, id_galpon, fecha, id_tipo_gallina, raza, cantidad_gallinas
+        query = text("""SELECT id_ingreso, ingreso_gallinas.id_galpon, fecha, id_tipo_gallina, raza, cantidad_gallinas, galpones.nombre AS nombre_galpon
                      FROM ingreso_gallinas
                      JOIN tipo_gallinas ON ingreso_gallinas.id_tipo_gallina = tipo_gallinas.id_tipo_gallinas
+                     JOIN galpones ON ingreso_gallinas.id_galpon = galpones.id_galpon
                      ORDER BY id_ingreso
                      LIMIT :limit OFFSET :skip
                 """)
@@ -134,20 +137,6 @@ def update_chickens_by_id(db: Session, id_ingreso: int, chicken: ChickenUpdate) 
         raise Exception("Error de base de datos al actualizar el registro")
 
 
-def get_chicken_by_id(db: Session, id_ingreso: int):
-    try:
-        query = text("""SELECT id_ingreso, id_galpon, fecha, id_tipo_gallina, raza, cantidad_gallinas
-                     FROM ingreso_gallinas
-                     JOIN tipo_gallinas ON ingreso_gallinas.id_tipo_gallina = tipo_gallinas.id_tipo_gallinas
-                     WHERE id_ingreso = :id
-                """)
-        result = db.execute(query, {"id": id_ingreso}).mappings().first()
-        return result
-    except SQLAlchemyError as e:
-        logger.error(f"Error al obtener el registro por id: {e}")
-        raise Exception("Error de base de datos al obtener el registro")
-
-
 def delete_chicken_by_id(db: Session, id_ingreso: int) -> bool:
     try:
         sentencia = text("""
@@ -177,9 +166,10 @@ def get_chihckens_by_date_range(db: Session, skip: int = 0, limit: int = 10, fec
             }).scalar()
 
         query = text("""
-            SELECT id_ingreso, id_galpon, fecha, id_tipo_gallina, raza, cantidad_gallinas
+            SELECT id_ingreso, ingreso_gallinas.id_galpon, fecha, id_tipo_gallina, raza, cantidad_gallinas, galpones.nombre AS nombre_galpon
                     FROM ingreso_gallinas
                     JOIN tipo_gallinas ON ingreso_gallinas.id_tipo_gallina = tipo_gallinas.id_tipo_gallinas
+                    JOIN galpones ON ingreso_gallinas.id_galpon = galpones.id_galpon
                     WHERE fecha BETWEEN :fecha_inicio AND :fecha_fin
                     ORDER BY fecha ASC
                     LIMIT :limit OFFSET :skip

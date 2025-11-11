@@ -1,4 +1,3 @@
-from math import ceil
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
@@ -97,7 +96,7 @@ def get_chickens(
             page=page,
             page_size=page_size,
             total_record_chickens=data['total'],
-            total_pages=ceil(data['total'] / page_size),
+            total_pages=(data['total'] + page_size -1) // page_size,
             record_chickens=data['chickens']
         )
     except SQLAlchemyError as e:
@@ -126,7 +125,7 @@ def get_chickens_pag(
             page=page,
             page_size=page_size,
             total_record_chickens=data['total'],
-            total_pages=ceil(data['total'] / page_size),
+            total_pages=(data['total'] + page_size -1) // page_size,
             record_chickens=data['chickens']
         )
     
@@ -159,7 +158,7 @@ def get_chickens_by_date(
             page=page,
             page_size=page_size,
             total_record_chickens=data['total'],
-            total_pages=ceil(data['total'] / page_size),
+            total_pages=(data['total'] + page_size -1) // page_size,
             record_chickens=data['chickens']
         )
 
