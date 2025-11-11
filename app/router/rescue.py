@@ -1,10 +1,11 @@
+from datetime import date
 from typing import List
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 from app.crud.permisos import verify_permissions
 from app.router.dependencies import get_current_user
-from app.schemas.rescue import RescueCreate, RescueOut, RescueUpdate
+from app.schemas.rescue import RescueCreate, RescueOut, RescuePaginatedResponse, RescueUpdate
 from core.database import get_db
 from app.schemas.users import UserOut
 from app.crud import rescue as crud_rescue
@@ -53,7 +54,23 @@ def get_rescue(
         return rescue
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))    
-    
+
+@router.get("/all", response_model=List[RescueOut])
+def get_all_rescues(
+    db: Session = Depends(get_db),
+    user_token: UserOut = Depends(get_current_user)
+):
+    try:
+        # Verificar permisos
+        id_rol = user_token.id_rol
+        if not verify_permissions(db, id_rol, modulo, 'seleccionar'):
+            raise HTTPException(status_code=401, detail="Consulta de salvamentos no autorizada")
+
+        rescues = crud_rescue.get_all_rescues(db)
+        return rescues
+        
+    except SQLAlchemyError as e:
+        raise HTTPException(status_code=500, detail=str(e)) 
 
 @router.put("/by-id/{id_salvamento}")
 def update_user(
@@ -95,5 +112,78 @@ def delete_rescue(
         
         return {"message": "Salvamento eliminado correctamente"}
         
+    except SQLAlchemyError as e:
+        raise HTTPException(status_code=500, detail=str(e))    
+
+@router.get("/all-pag", response_model=RescuePaginatedResponse)
+def get_rescues_pag(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(10, ge=1, le=100),
+    db: Session = Depends(get_db),
+    # user_token: UserOut = Depends(get_current_user)
+):
+    try:
+        # Verificar permisos
+        # id_rol = user_token.id_rol
+        # if not verify_permissions(db, id_rol, modulo, 'seleccionar'):
+        #     raise HTTPException(status_code=401, detail="Consulta de salvamentos no autorizada")
+
+        skip = (page - 1) * page_size
+        data = crud_rescue.get_all_rescues_pag(db, skip=skip, limit=page_size)
+
+        total = data['total']
+        rescues = data['rescues']
+
+        return {
+            "page": page,
+            "page_size": page_size,
+            "total_rescues": total,
+            "total_pages": (total + page_size - 1) // page_size,
+            "rescues": rescues
+        }
+    except SQLAlchemyError as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/all-pag-by-date", response_model=RescuePaginatedResponse)
+def get_rescues_pag_by_date(
+    fecha_inicio: date = Query(..., description="Fecha de inicio (YYYY-MM-DD)"),
+    fecha_fin: date = Query(..., description="Fecha de fin (YYYY-MM-DD)"),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(10, ge=1, le=100),
+    db: Session = Depends(get_db),
+    # user_token: UserOut = Depends(get_current_user)
+):
+    try:
+        # id_rol = user_token.id_rol
+        # if not verify_permissions(db, id_rol, modulo, 'seleccionar'):
+        #     raise HTTPException(status_code=401, detail="Consulta de salvamentos no autorizada")
+
+        
+        if fecha_inicio > fecha_fin:
+            raise HTTPException(
+                status_code=400, 
+                detail="La fecha de inicio no puede ser mayor que la fecha de fin"
+            )
+
+        skip = (page - 1) * page_size
+        data = crud_rescue.get_rescues_by_date_range_pag(
+            db, 
+            fecha_inicio=fecha_inicio, 
+            fecha_fin=fecha_fin, 
+            skip=skip, 
+            limit=page_size
+        )
+
+        total = data['total']
+        rescues = data['rescues']
+
+        return {
+            "page": page,
+            "page_size": page_size,
+            "total_rescues": total,
+            "total_pages": (total + page_size - 1) // page_size,
+            "rescues": rescues
+        }
     except SQLAlchemyError as e:
         raise HTTPException(status_code=500, detail=str(e))
