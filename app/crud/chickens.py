@@ -70,7 +70,7 @@ def get_chicken_by_galpon(db: Session, skip: int = 0, limit: int = 10, id_galpon
                      FROM ingreso_gallinas
                      JOIN tipo_gallinas ON ingreso_gallinas.id_tipo_gallina = tipo_gallinas.id_tipo_gallinas
                      JOIN galpones ON ingreso_gallinas.id_galpon = galpones.id_galpon
-                     WHERE id_galpon = :galpon
+                     WHERE ingreso_gallinas.id_galpon = :galpon
                      ORDER BY id_ingreso
                      LIMIT :limit OFFSET :skip
                 """)
