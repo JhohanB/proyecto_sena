@@ -19,30 +19,32 @@ def create_isolation(
     isolation: IsolationCreate, 
     db: Session = Depends(get_db),
     user_token: UserOut = Depends(get_current_user)
-):
-    if isolation.id_galpon <= 0:
-        raise HTTPException(status_code=400, detail="El ID del galpón debe ser mayor que cero")
- 
-    if isolation.id_incidente_gallina <= 0:
-        raise HTTPException(status_code=400, detail="El ID del incidente debe ser mayor que cero")
-    
-    # Validar galpón
-    result = db.execute(text("SELECT id_galpon FROM galpones WHERE id_galpon = :id"), {"id": isolation.id_galpon}).first()
-    if not result:
-        raise HTTPException(status_code=404, detail=f"El id del galpón ingresado no existe")
-
-    # Validar incidente
-    result = db.execute(text("SELECT id_inc_gallina FROM incidentes_gallina WHERE id_inc_gallina = :id"), {"id": isolation.id_incidente_gallina}).first()
-    if not result:
-        raise HTTPException(status_code=404, detail=f"El id del incidente ingresado no existe")
-    
+):    
     try:
-     id_rol = user_token.id_rol
-     if not verify_permissions(db, id_rol, modulo, 'insertar'):
-            raise HTTPException(status_code=401, detail="Usuario no autorizado")
-     
-     crud_isolation.create_isolation(db, isolation)
-     return {"message": "Aislamiento creado correctamente"}
+        if isolation.id_galpon <= 0:
+            raise HTTPException(status_code=400, detail="El ID del galpón debe ser mayor que cero")
+    
+        if isolation.id_incidente_gallina <= 0:
+            raise HTTPException(status_code=400, detail="El ID del incidente debe ser mayor que cero")
+        
+        if isolation.id_galpon is None:
+                raise HTTPException(status_code=422, detail="Debe ingresar un id galpón")
+        # Validar galpón
+        result = db.execute(text("SELECT id_galpon FROM galpones WHERE id_galpon = :id"), {"id": isolation.id_galpon}).first()
+        if not result:
+            raise HTTPException(status_code=404, detail="El id del galpón ingresado no existe")
+
+        # Validar incidente
+        result = db.execute(text("SELECT id_inc_gallina FROM incidentes_gallina WHERE id_inc_gallina = :id"), {"id": isolation.id_incidente_gallina}).first()
+        if not result:
+            raise HTTPException(status_code=404, detail=f"El id del incidente ingresado no existe")
+            
+        id_rol = user_token.id_rol
+        if not verify_permissions(db, id_rol, modulo, 'insertar'):
+                raise HTTPException(status_code=401, detail="Usuario no autorizado")
+        
+        crud_isolation.create_isolation(db, isolation)
+        return {"message": "Aislamiento creado correctamente"}
 
     except SQLAlchemyError as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -54,10 +56,11 @@ def get_isolation(
     db: Session = Depends(get_db),
     user_token: UserOut = Depends(get_current_user)
 ):
-    if  id <= 0:
-        raise HTTPException(status_code=400, detail="El ID del aislamiento debe ser mayor que cero")
     
     try:
+        if  id <= 0:
+            raise HTTPException(status_code=400, detail="El ID del aislamiento debe ser mayor que cero")
+    
         # El rol de quien usa el endpoint
         id_rol = user_token.id_rol
         if not verify_permissions(db, id_rol, modulo, 'seleccionar'):
@@ -101,7 +104,6 @@ def obtener_isolation_por_rango_fechas(
     user_token: UserOut = Depends(get_current_user)
     
 ):
-    
     """
     Obtiene todas las tareas que inician o terminan dentro de un rango de fechas.
     Ignora las horas y devuelve las tareas ordenadas por fecha_hora_init.
@@ -169,7 +171,6 @@ def update_isolations(
     db: Session = Depends(get_db),
     user_token: UserOut = Depends(get_current_user)
 ):
-    
     try:
         id_rol = user_token.id_rol  # El rol del usuario actual
 
@@ -181,9 +182,9 @@ def update_isolations(
             if isolation.id_galpon <= 0:
                 raise HTTPException(status_code=400, detail="El ID del galpón debe ser mayor que cero")
         
-            result = db.execute(text("SELECT id_galpon FROM galpones WHERE id_galpon = :id"), {"id": isolation.id_galpon}).first()
-            if not result:
-                raise HTTPException(status_code=404, detail=f"El id del galpón no existe")
+        result = db.execute(text("SELECT id_galpon FROM galpones WHERE id_galpon = :id"), {"id": isolation.id_galpon}).first()
+        if not result:
+            raise HTTPException(status_code=404, detail=f"El id del galpón no existe")
         
         if isolation.id_incidente_gallina is not None:  
             if isolation.id_incidente_gallina <= 0:
