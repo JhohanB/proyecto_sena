@@ -1,3 +1,4 @@
+from unittest import skip
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import text
@@ -117,3 +118,46 @@ def get_user_by_id(db: Session, id: int):
     except SQLAlchemyError as e:
         logger.error(f"Error al obtener usuario por id: {e}")
         raise Exception("Error de base de datos al obtener el usuario")
+    
+def get_all_user_except_admins_pag(db: Session, skip: int = 0, limit: int = 10):
+    """
+    Obtiene los usuarios (excepto los administradores) con paginación.
+    También realiza una segunda consulta para contar el total de usuarios.
+    Compatible con PostgreSQL, MySQL y SQLite.
+    """
+    try:
+        # 1. Contar el total de usuarios excepto los administradores
+        count_query = text("""
+            SELECT COUNT(id_usuario) AS total 
+            FROM usuarios 
+            WHERE id_rol NOT IN (1, 2)
+        """)
+        total_result = db.execute(count_query).scalar()  # <-- le faltaban los paréntesis
+
+        # 2. Consultar usuarios paginados
+        data_query = text("""
+            SELECT id_usuario, nombre, documento, usuarios.id_rol,
+                   email, telefono, estado, nombre_rol
+            FROM usuarios
+            JOIN roles ON usuarios.id_rol = roles.id_rol
+            WHERE usuarios.id_rol NOT IN (1, 2)
+            ORDER BY id_usuario
+            LIMIT :limit OFFSET :skip
+        """)
+
+        result = db.execute(data_query, {'skip': skip, 'limit': limit}).mappings().all()
+
+        # 3. Retornar resultados
+        return {
+            "total": total_result or 0,
+            "users": [dict(row) for row in result]
+        }
+
+    except SQLAlchemyError as e:
+        logger.error(f"Error al obtener los usuarios: {e}", exc_info=True)
+        raise Exception("Error de base de datos al obtener los usuarios")
+
+    
+    
+    
+    

@@ -1,6 +1,6 @@
 import datetime
-from pydantic import BaseModel
-from typing import Optional
+from pydantic import BaseModel, Field, validator
+from typing import List, Optional
 
 from enum import Enum
 
@@ -22,11 +22,10 @@ class incidentChickenBase(BaseModel):
     tipo_incidente : TipoIncidenteGallina
     cantidad : int
     descripcion : str
-    fecha_hora: datetime.datetime
     esta_resuelto: bool
 
 class incidentChickenCreate(incidentChickenBase):
-    pass
+    fecha_hora:datetime.datetime = Field(..., description="Fecha y hora del aislamiento")
 
 class incidentChickenUpdate(BaseModel):
     galpon_origen : Optional[int] = None
@@ -34,11 +33,19 @@ class incidentChickenUpdate(BaseModel):
     cantidad : Optional[int] = None
     descripcion : Optional[str] = None
     fecha_hora: Optional[datetime.datetime] = None
-    
+   
 class incidentChickenEstado(BaseModel):
     esta_resuelto: Optional[bool] = None
-    
+   
 
 class incidentChickenOut(incidentChickenBase):
     id_inc_gallina: int
     nombre: str
+    fecha_hora:datetime.datetime = Field(..., description="Fecha y hora del aislamiento")
+     
+class PaginatedChickenIncidents(BaseModel):
+    page: int
+    page_size: int
+    total_incidents: int
+    total_pages: int
+    incidents: List[incidentChickenOut] 

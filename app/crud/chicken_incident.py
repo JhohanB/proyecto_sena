@@ -12,7 +12,7 @@ def create_incident(db: Session, incident_ch: incidentChickenCreate) -> Optional
     try:
         query = text("""
             INSERT INTO incidentes_gallina (
-                galpon_origen, tipo_incidente, cantidad, descripcion,fecha_hora, esta_resuelto
+                galpon_origen, tipo_incidente, cantidad, descripcion, fecha_hora, esta_resuelto
             ) VALUES (
                 :galpon_origen, :tipo_incidente, :cantidad, :descripcion, :fecha_hora, :esta_resuelto
             )
@@ -28,43 +28,47 @@ def create_incident(db: Session, incident_ch: incidentChickenCreate) -> Optional
 
 def get_incident_chicken_by_id(db: Session, id_incident_chicken: int):
     try:
-        query = text("""SELECT id_inc_gallina, galpon_origen, tipo_incidente, cantidad, descripcion, fecha_hora, esta_resuelto, galpones.nombre                    
-                    FROM incidentes_gallina
-                    INNER JOIN galpones ON galpones.id_galpon = incidentes_gallina.galpon_origen
-                    WHERE id_inc_gallina = :id_inc_gallina""")
+        query = text("""
+            SELECT id_inc_gallina, galpon_origen, tipo_incidente, cantidad, descripcion, fecha_hora, esta_resuelto, galpones.nombre
+            FROM incidentes_gallina
+            INNER JOIN galpones ON galpones.id_galpon = incidentes_gallina.galpon_origen
+            WHERE id_inc_gallina = :id_inc_gallina
+        """)
         result = db.execute(query, {"id_inc_gallina": id_incident_chicken}).mappings().first()
         return result
     except SQLAlchemyError as e:
         logger.error(f"Error al obtener incidente de gallina por id: {e}")
         raise Exception("Error de base de datos al obtener el incidente de gallina")
 
+
 def get_all_chicken_incidents(db: Session):
     try:
-        query = text("""SELECT id_inc_gallina, galpon_origen, tipo_incidente, cantidad, descripcion, fecha_hora, esta_resuelto, galpones.nombre
-                    FROM incidentes_gallina
-                    INNER JOIN galpones ON galpones.id_galpon = incidentes_gallina.galpon_origen
-                    """)
+        query = text("""
+            SELECT id_inc_gallina, galpon_origen, tipo_incidente, cantidad, descripcion, fecha_hora, esta_resuelto, galpones.nombre
+            FROM incidentes_gallina
+            INNER JOIN galpones ON galpones.id_galpon = incidentes_gallina.galpon_origen
+        """)
         result = db.execute(query).mappings().all()
         return result
     except SQLAlchemyError as e:
-        logger.error(f"Error al obtener los aislamientos: {e}")
-        raise Exception("Error de base de datos al obtener los aislamientos")
+        logger.error(f"Error al obtener los incidentes: {e}")
+        raise Exception("Error de base de datos al obtener los incidentes")
+
 
 def update_chicken_incident_by_id(db: Session, incident_chicken_id: int, chicken_incident: incidentChickenUpdate) -> Optional[bool]:
     try:
-   
         chicken_incident_data = chicken_incident.model_dump(exclude_unset=True)
         if not chicken_incident_data:
-            return False 
+            return False
+
         set_clauses = ", ".join([f"{key} = :{key}" for key in chicken_incident_data.keys()])
         sentencia = text(f"""
-            UPDATE incidentes_gallina 
+            UPDATE incidentes_gallina
             SET {set_clauses}
             WHERE id_inc_gallina = :id_inc_gallina
         """)
 
         chicken_incident_data["id_inc_gallina"] = incident_chicken_id
-
         result = db.execute(sentencia, chicken_incident_data)
         db.commit()
         return result.rowcount > 0
@@ -72,4 +76,39 @@ def update_chicken_incident_by_id(db: Session, incident_chicken_id: int, chicken
         db.rollback()
         logger.error(f"Error al actualizar el incidente gallina {incident_chicken_id}: {e}")
         raise Exception("Error de base de datos al actualizar el incidente gallina")
-    
+
+
+def get_incidentes_gallina_by_date_range(db: Session, fecha_inicio: str, fecha_fin: str):
+    try:
+        query = text("""
+            SELECT id_inc_gallina, galpon_origen, tipo_incidente, cantidad, descripcion, fecha_hora, esta_resuelto, galpones.nombre
+            FROM incidentes_gallina
+            INNER JOIN galpones ON galpones.id_galpon = incidentes_gallina.galpon_origen
+            WHERE DATE(fecha_hora) BETWEEN :fecha_inicio AND :fecha_fin
+            ORDER BY fecha_hora ASC
+        """)
+        result = db.execute(query, {"fecha_inicio": fecha_inicio, "fecha_fin": fecha_fin}).mappings().all()
+        return result
+    except SQLAlchemyError as e:
+        logger.error(f"Error al consultar los incidentes de gallinas por rango de fechas: {e}")
+        raise Exception("Error de base de datos al consultar los incidentes de gallinas por rango de fechas")
+
+
+def get_all_chicken_incidents_pag(db: Session, skip: int = 0, limit: int = 10):
+    try:
+        count_query = text("SELECT COUNT(id_inc_gallina) AS total FROM incidentes_gallina")
+        total_result = db.execute(count_query).scalar() or 0
+
+        data_query = text("""
+            SELECT id_inc_gallina, galpon_origen, tipo_incidente, cantidad, descripcion, fecha_hora, esta_resuelto, galpones.nombre
+            FROM incidentes_gallina
+            LEFT JOIN galpones ON galpones.id_galpon = incidentes_gallina.galpon_origen
+            ORDER BY id_inc_gallina DESC
+            LIMIT :limit OFFSET :skip
+        """)
+
+        incidents = db.execute(data_query, {"skip": int(skip), "limit": int(limit)}).mappings().all()
+        return {"total": total_result, "incidents": incidents}
+    except SQLAlchemyError as e:
+        logger.error(f"Error al obtener los incidentes de gallinas: {e}", exc_info=True)
+        raise Exception("Error de base de datos al obtener los incidentes de gallinas")
