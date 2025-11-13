@@ -24,3 +24,4 @@ class UserEstado(BaseModel):
 class UserOut(UserBase):
     id_usuario: int
     nombre_rol: str
+
