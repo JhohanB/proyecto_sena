@@ -7,7 +7,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from app.crud.permisos import verify_permissions
 from app.router.dependencies import get_current_user
 from core.database import get_db
-from app.schemas.chicken_incident import PaginatedChickenIncidents, incidentChickenBase, incidentChickenOut, incidentChickenUpdate
+from app.schemas.chicken_incident import PaginatedChickenIncidents, incidentChickenBase, incidentChickenEstado, incidentChickenOut, incidentChickenUpdate
 from app.crud import chicken_incident as crud_chicken_incident
 
 router = APIRouter()
@@ -232,3 +232,29 @@ def get_incidentes_gallinas_pag(
 
     except SQLAlchemyError as e:
         raise HTTPException(status_code=500, detail=f"Error al obtener incidentes de gallinas: {e}")
+
+
+     
+@router.put("/cambiar-estado/{user_id}", status_code=status.HTTP_200_OK)
+def change_chiken_status(
+    chiken_id: int,
+    nuevo_estado: bool,
+    db: Session = Depends(get_db),
+    user_token: UserOut = Depends(get_current_user)
+):
+    try:
+        # Verificar permisos del usuario
+        id_rol = user_token.id_rol
+        if not verify_permissions(db, id_rol, modulo, 'actualizar'):
+            raise HTTPException(status_code=401, detail="Usuario no autorizado")
+
+        success = crud_chicken_incident.change_chiken_status(db, chiken_id, nuevo_estado)
+        if not success:
+            raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+        return {"message": f"Estado del usuario actualizado a {nuevo_estado}"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

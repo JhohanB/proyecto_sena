@@ -112,3 +112,20 @@ def get_all_chicken_incidents_pag(db: Session, skip: int = 0, limit: int = 10):
     except SQLAlchemyError as e:
         logger.error(f"Error al obtener los incidentes de gallinas: {e}", exc_info=True)
         raise Exception("Error de base de datos al obtener los incidentes de gallinas")
+
+def change_chiken_status(db: Session, id_chiken: int, nuevo_estado: bool):
+    try:
+        sentencia = text("""
+            UPDATE incidentes_gallina
+            SET esta_resuelto = :estado
+            WHERE id_inc_gallina = :id_chiken
+        """)
+        result = db.execute(sentencia, {"estado": nuevo_estado, "id_chiken": id_chiken})
+        db.commit()
+
+        return result.rowcount > 0
+
+    except SQLAlchemyError as e:
+        db.rollback()
+        logger.error(f"Error al cambiar el estado del usuario {id_chiken}: {e}")
+        raise Exception("Error de base de datos al cambiar el estado del usuario")
