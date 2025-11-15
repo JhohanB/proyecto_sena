@@ -7,7 +7,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from app.crud.permisos import verify_permissions
 from app.router.dependencies import get_current_user
 from core.database import get_db
-from app.schemas.chicken_incident import PaginatedChickenIncidents, incidentChickenBase, incidentChickenEstado, incidentChickenOut, incidentChickenUpdate
+from app.schemas.chicken_incident import PaginatedChickenIncidents, incidentChickenBase, incidentChickenCreate, incidentChickenEstado, incidentChickenOut, incidentChickenUpdate
 from app.crud import chicken_incident as crud_chicken_incident
 
 router = APIRouter()
@@ -15,27 +15,24 @@ modulo = 5
 
 @router.post("/crear", status_code=status.HTTP_201_CREATED)
 def create_incident(
-    incident_ch: incidentChickenBase, 
+    incident_ch: incidentChickenCreate, 
     db: Session = Depends(get_db),
     user_token: UserOut = Depends(get_current_user)
-):
-    
-    
-    
-    result = db.execute(text("SELECT id_galpon FROM galpones WHERE id_galpon = :id"), {"id": incident_ch.galpon_origen}).first()
-    
-    if incident_ch.galpon_origen <= 0:
-        raise HTTPException(status_code=404, detail="El id del galpon debe ser mayor a cero")
-    
-    if not result:
-         raise HTTPException(status_code=404, detail="El id del galpon ingresado no existe")
+):    
     try:
-     id_rol = user_token.id_rol
-     if not verify_permissions(db, id_rol, modulo, 'insertar'):
+        id_rol = user_token.id_rol
+        result = db.execute(text("SELECT id_galpon FROM galpones WHERE id_galpon = :id"), {"id": incident_ch.galpon_origen}).first()
+    
+        if incident_ch.galpon_origen <= 0:
+            raise HTTPException(status_code=404, detail="El id del galpon debe ser mayor a cero")
+    
+        if not result:
+            raise HTTPException(status_code=404, detail="El id del galpon ingresado no existe")
+        if not verify_permissions(db, id_rol, modulo, 'insertar'):
             raise HTTPException(status_code=401, detail="Usuario no autorizado")
      
-     crud_chicken_incident.create_incident(db, incident_ch)
-     return {"message": "Incidente gallina creado correctamente"}
+        crud_chicken_incident.create_incident(db, incident_ch)
+        return {"message": "Incidente gallina creado correctamente"}
 
     except SQLAlchemyError as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -177,8 +174,13 @@ def obtener_incidentes_gallina_por_rango_fechas(
         skip = (page - 1) * page_size
         data = crud_chicken_incident.get_all_chicken_incidents_pag(db, skip=skip, limit=page_size)
 
-        total = data["total"]
-        incidentes_paginados = data["incidents"]
+        total = len(incidentes)
+        total_pages = (total + page_size - 1) // page_size
+
+        start = (page - 1) * page_size
+        end = start + page_size
+
+        incidentes_paginados = incidentes[start:end]
 
         return PaginatedChickenIncidents(
             page=page,
@@ -246,13 +248,13 @@ def change_chiken_status(
         # Verificar permisos del usuario
         id_rol = user_token.id_rol
         if not verify_permissions(db, id_rol, modulo, 'actualizar'):
-            raise HTTPException(status_code=401, detail="Usuario no autorizado")
+            raise HTTPException(status_code=401, detail="usuario no autorizado")
 
         success = crud_chicken_incident.change_chiken_status(db, chiken_id, nuevo_estado)
         if not success:
-            raise HTTPException(status_code=404, detail="Usuario no encontrado")
+            raise HTTPException(status_code=404, detail="incidente gallina no encontrado")
 
-        return {"message": f"Estado del usuario actualizado a {nuevo_estado}"}
+        return {"message": f"Estado del incidente gallina actualizado a {nuevo_estado}"}
 
     except HTTPException:
         raise
