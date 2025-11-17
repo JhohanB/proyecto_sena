@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.router import auth, rescue, users, chickens, isolation, type_chickens, chicken_incident
+from app.router import auth, rescue, users, chickens, isolation, type_chickens, chicken_incident, sheds
 
 app = FastAPI()
 
