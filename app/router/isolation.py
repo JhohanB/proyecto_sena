@@ -11,7 +11,7 @@ from app.schemas.isolation import IsolationBase, IsolationCreate, IsolationOut, 
 from app.crud import isolation as crud_isolation
 
 router = APIRouter()
-modulo = 5
+modulo = 23
 
 @router.post("/crear", status_code=status.HTTP_201_CREATED)
 def create_isolation(
