@@ -26,11 +26,19 @@ def create_type_chicken(
         if not verify_permissions(db, id_rol, modulo, 'insertar'):
             raise HTTPException(status_code=401, detail="Usuario no autorizado")
 
-        crud_type_chicken.create_type_chicken(db, type_chicken)
+        created = crud_type_chicken.create_type_chicken(db, type_chicken)
+
+        if created is False:
+            raise HTTPException(
+                status_code=400,
+                detail="El tipo de gallina con esa raza y descripción ya existe."
+            )
+
         return {"message": "Registro de tipo de gallinas creado correctamente"}
 
     except SQLAlchemyError as e:
         raise HTTPException(status_code=500, detail=str(e))
+
 
 
 @router.get("/by-id", response_model=TypeChickenOut)

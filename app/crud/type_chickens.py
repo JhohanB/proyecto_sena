@@ -10,16 +10,32 @@ logger = logging.getLogger(__name__)
 
 def create_type_chicken(db: Session, type_chicken: TypeChickenCreate) -> Optional[bool]:
     try:
-        query = text("""
-            INSERT INTO tipo_gallinas (
-                raza, descripcion
-            ) VALUES (
-                :raza, :descripcion
-            )
+        # Validar si ya existe la misma raza + descripción
+        check_query = text("""
+            SELECT COUNT(*) AS total
+            FROM tipo_gallinas
+            WHERE raza = :raza AND descripcion = :descripcion
         """)
-        db.execute(query, type_chicken.model_dump())
+
+        result = db.execute(check_query, {
+            "raza": type_chicken.raza,
+            "descripcion": type_chicken.descripcion
+        }).scalar()
+
+        if result > 0:
+            return False  # Ya existe, no crear
+
+        # Crear nuevo registro
+        insert_query = text("""
+            INSERT INTO tipo_gallinas (raza, descripcion)
+            VALUES (:raza, :descripcion)
+        """)
+
+        db.execute(insert_query, type_chicken.model_dump())
         db.commit()
+
         return True
+
     except SQLAlchemyError as e:
         db.rollback()
         logger.error(f"Error al crear el tipo de gallina: {e}")
