@@ -10,7 +10,7 @@ from app.crud import chickens as crud_chickens
 from app.crud import type_chickens as crud_types
 
 router = APIRouter()
-modulo = 5
+modulo = 20
 
 @router.post("/crear", status_code=status.HTTP_201_CREATED)
 def create_chicken(
