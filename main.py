@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.router import auth, rescue, users, chickens, isolation, type_chickens, chicken_incident
+from app.router import auth, rescue, users, chickens, isolation, type_chickens, chicken_incident, sheds
 
 app = FastAPI()
 
@@ -12,6 +12,7 @@ app.include_router(chicken_incident.router, prefix="/incident", tags=["incidente
 app.include_router(rescue.router, prefix="/rescue", tags=["salvamentos"])
 app.include_router(chickens.router, prefix="/chickens", tags=["gallinas"])
 app.include_router(type_chickens.router, prefix="/type_chicken", tags=['type_chicken'])
+app.include_router(sheds.router, prefix="/sheds", tags=['sheds'])
 
 
 # Configuración de CORS para permitir todas las solicitudes desde cualquier origen

@@ -11,7 +11,7 @@ from app.schemas.chicken_incident import PaginatedChickenIncidents, incidentChic
 from app.crud import chicken_incident as crud_chicken_incident
 
 router = APIRouter()
-modulo = 5
+modulo = 22
 
 @router.post("/crear", status_code=status.HTTP_201_CREATED)
 def create_incident(
