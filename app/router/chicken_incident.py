@@ -157,28 +157,31 @@ def obtener_incidentes_gallina_por_rango_fechas(
     user_token: UserOut = Depends(get_current_user)
 ):
     """
-    Obtiene todos los incidentes de gallinas dentro de un rango de fechas.
-    Ignora las horas y devuelve los incidentes ordenados por fecha_hora.
+    Obtiene los incidentes de gallinas dentro de un rango de fechas y aplica paginación.
     """
     try:
         id_rol = user_token.id_rol
-        
         if not verify_permissions(db, id_rol, modulo, 'seleccionar'):
             raise HTTPException(status_code=401, detail="Usuario no autorizado")
-        
 
         incidentes = crud_chicken_incident.get_incidentes_gallina_by_date_range(
             db, fecha_inicio, fecha_fin
         )
+
         if not incidentes:
-            raise HTTPException(status_code=404, detail="No hay incidentes de gallinas en ese rango de fechas")
+            return PaginatedChickenIncidents(
+                page=page,
+                page_size=page_size,
+                total_incidents=0,
+                total_pages=0,
+                incidents=[]
+            )
 
-    
+
+        total = len(incidentes)
         skip = (page - 1) * page_size
-        data = crud_chicken_incident.get_all_chicken_incidents_pag(db, skip=skip, limit=page_size)
+        incidentes_paginados = incidentes[skip : skip + page_size]
 
-        total = data["total"]
-        incidentes_paginados = data["incidents"]
 
         return PaginatedChickenIncidents(
             page=page,
