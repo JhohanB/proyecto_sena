@@ -11,7 +11,7 @@ from app.schemas.chicken_incident import PaginatedChickenIncidents, incidentChic
 from app.crud import chicken_incident as crud_chicken_incident
 
 router = APIRouter()
-modulo = 22
+modulo = 5
 
 @router.post("/crear", status_code=status.HTTP_201_CREATED)
 def create_incident(
@@ -20,8 +20,7 @@ def create_incident(
     user_token: UserOut = Depends(get_current_user)
 ):
     
-    
-    
+      
     result = db.execute(text("SELECT id_galpon FROM galpones WHERE id_galpon = :id"), {"id": incident_ch.galpon_origen}).first()
     
     if incident_ch.galpon_origen <= 0:
@@ -110,7 +109,7 @@ def update_chicken_incident(
 
 
         id_rol = user_token.id_rol
-        modulo = "incidentes_gallinas" 
+
 
         if not verify_permissions(db, id_rol, modulo, 'actualizar'):
             raise HTTPException(
